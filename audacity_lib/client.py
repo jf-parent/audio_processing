@@ -10,10 +10,10 @@ from audacity_lib import pipeclient
 
 class Client(object):
 
-    def __init__(self, open_file=None):
+    def __init__(self):
         commands = []
 
-        cwd = Path(os.getcwd())
+        self.uuid = str(uuid.uuid1())
 
         try:
             self.config = json.load(open('../config.json'))
@@ -23,25 +23,15 @@ class Client(object):
 
         commands.append(self.config['audacity_exe_path'])
 
-        if open_file:
-            new_file = cwd / Path(open_file.replace('{uuid}', str(uuid.uuid1())))
-            input_file = cwd / Path(open_file.replace('-{uuid}', ''))
-            subprocess.call(f"cp {input_file} {new_file}", shell=True)
-
-            commands.append(str(new_file))
-
         print("Starting Audacity...")
         print(f"Running '{commands[0]}'")
         subprocess.call(commands[0] + "&", shell=True)
         input("Is Audacity ready?<enter>")
-        if open_file:
-            print("Opening new project...")
-            print(f"Running '{commands}'")
-            subprocess.call(" ".join(commands), shell=True)
-            # TODO make automatic
-            input("Is project ready?<enter>")
 
         self.client = pipeclient.PipeClient()
+
+    def get_project_name(self):
+        return f"outputs/{self.uuid}.aup"
 
     def do(self, command, mute=False):
         reply = ''
