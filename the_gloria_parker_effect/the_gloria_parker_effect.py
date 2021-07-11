@@ -10,7 +10,7 @@ from audacity_lib import client, utils
 
 client = client.Client()
 
-files = ["inputs/accompaniment.wav", "inputs/vocal.wav"]
+files = ["inputs/celine_dion/accompaniment.wav", "inputs/celine_dion/vocals.wav"]
 for f in files:
     client.do(f"Import2: Filename={f}")
 
