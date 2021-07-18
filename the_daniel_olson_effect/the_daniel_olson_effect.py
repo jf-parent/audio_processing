@@ -10,7 +10,6 @@ from pydub.playback import play
 sys.path.insert(0, "..")
 
 # TODO apply reverse as an overlay
-# TODO resplit by silence and try to sync with master
 # TODO Overlay background noise
 
 ENABLE_CHORUS = True
@@ -82,13 +81,16 @@ for id_, fragment in enumerate(fragments):
     input_file_path = f"tmp/{id_}.wav"
     fragment.export(input_file_path, format="wav")
     apply_effects(input_file_path, output_file_path)
-    new_fragments.append(AudioSegment.from_file(output_file_path, format="wav"))
+    new_fragments.append((
+        fragment,
+        AudioSegment.from_file(output_file_path, format="wav")))
 
 # Rebuild output
 out = []
 last_end = None
-for idx_slice, fragment in zip(non_silence, new_fragments):
-    print(idx_slice, fragment)
+for idx_slice, fragments in zip(non_silence, new_fragments):
+    print(idx_slice, fragments)
+    orig_fragment, new_fragment = fragments
 
     beg, end = idx_slice
     if not out:
@@ -100,9 +102,12 @@ for idx_slice, fragment in zip(non_silence, new_fragments):
         print(f"[*]Appending silence for {duration}")
         out.append(AudioSegment.silent(duration=duration))
 
-    out.append(fragment)
-    last_end = end
+    fragment_ = new_fragment[:len(orig_fragment)]
+    out.append(fragment_)
+    last_end = beg + len(fragment_)
 #print(f"[*]out: {out}")
+
+out.append(AudioSegment.silent(duration=1000))
 
 out = sum(out)
 out.export("tmp/output.wav", format="wav")
