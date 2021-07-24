@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
+from glob import glob
 import random
 import sys
+from itertools import cycle
 
 import sox
 from pydub import AudioSegment, silence
@@ -10,14 +12,27 @@ from pydub.playback import play
 sys.path.insert(0, "..")
 
 # TODO apply reverse as an overlay
-# TODO Overlay background noise
 
+NB_BACKGROUND_AMBIENT_SOUNDS = 3
 ENABLE_CHORUS = True
 ENABLE_GAIN = True
 ENABLE_PITCH = True
 ENABLE_REVERB = True
 ENABLE_REVERSE = False
 ENABLE_TREMOLO = True
+
+def load_ambient_sounds():
+    sounds = []
+    for file_ in glob('./sounds/background*'):
+        sounds.append(AudioSegment.from_file(file_))
+    return sounds
+
+def load_loud_sounds():
+    sounds = []
+    for file_ in glob('./sounds/loud*'):
+        sounds.append(AudioSegment.from_file(file_))
+    random.shuffle(sounds)
+    return cycle(sounds)
 
 def apply_effects(input_file_path, output_file_path):
     new_pitch = random.randint(-6,6)
@@ -65,8 +80,8 @@ def apply_effects(input_file_path, output_file_path):
     tfm.build_file(input_array=array, output_filepath=output_file_path, sample_rate_in=44100)
 
 # Import
-sound = AudioSegment.from_file("./files/audio_out.wav", format="wav")
-# sound = AudioSegment.from_file("./files/sample.wav", format="wav")
+#sound = AudioSegment.from_file("./files/audio_out.wav", format="wav")
+sound = AudioSegment.from_file("./files/sample.wav", format="wav")
 #play(sound)
 
 # Detect silence for reference
@@ -109,5 +124,23 @@ for idx_slice, fragments in zip(non_silence, new_fragments):
 
 out.append(AudioSegment.silent(duration=1000))
 
-out = sum(out)
-out.export("tmp/output.wav", format="wav")
+master_orig = sum(out)
+master = master_orig[:]
+
+# Overlay background ambient sounds
+ambient_sounds = load_ambient_sounds()
+for _ in range(NB_BACKGROUND_AMBIENT_SOUNDS):
+    random.shuffle(ambient_sounds)
+    sound_ = ambient_sounds.pop()
+    print(f"[*] Overlaying background ambient {sound_}")
+    master = master.overlay(sound_)
+
+# Overlay background sounds during silence
+loud_sounds = load_loud_sounds()
+silences = silence.detect_silence(master_orig, min_silence_len=500, silence_thresh=-60)
+for silence in silences:
+    sound_ = next(loud_sounds)
+    print(f"[*] Overlaying background loud noise {sound_} @ {silence}")
+    master = master.overlay(sound_, position=silence[0])
+
+master.export("tmp/output.wav", format="wav")
